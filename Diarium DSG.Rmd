@@ -1,0 +1,48 @@
+---
+title: "Diarium DSG"
+output: html_document
+date: "2023-05-25"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(readxl)
+library(tidyverse)
+library(plotly)
+presensi <- read_excel("Monitoring_Presensi_Diarium_Historis_930102_REPORT_930102_1684910809.xlsx")
+
+presensi <- presensi %>% mutate(bulan=month(tanggal, label = TRUE, abbr = TRUE))
+
+presensi %>%
+  group_by(bulan, tanggal, nama_karyawan, status_checked_in, status_checked_out) %>%
+  summarise(count=n()) %>%
+  # filter(nama_karyawan=="PUTU WAHYU SAPUTRA") %>%
+  pivot_longer(cols=4:5  ,names_to = 'jenis', values_to = 'status') %>%
+  group_by(bulan,nama_karyawan,status) %>% summarise(sum=sum(count)) -> tes 
+
+tes %>%
+  ggplot(aes(x= bulan, y=sum, group=status, color=status)) + geom_line() + facet_wrap(~nama_karyawan)
+ggplotly()
+```
+
+```{r}
+library(imputeTS)
+library(scales)
+tes %>%
+  pivot_wider(names_from = status, values_from = sum) %>%
+  na_replace(0) %>%
+  select(bulan, nama_karyawan, `CHECKED IN`, `CHECKED OUT`) %>%
+   mutate(CHECKIN_MONTHLY = percent(`CHECKED IN` / 30 , accuracy=0.1),
+          CHECKOUT_MONTHLY = percent(`CHECKED OUT` / 30, , accuracy=0.1 )) -> 
+  percentage_tes
+
+```
+```{r}
+library(DT)
+
+datatable(percentage_tes, filter = 'top', options = list(pageLength = 10, autoWidth = TRUE))
+```
+
